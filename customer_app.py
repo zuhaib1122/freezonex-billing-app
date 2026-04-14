@@ -5,7 +5,8 @@ import datetime
 
 # --- 1. Connection Logic ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name('frezonex-key.json', scope)
+creds_dict = st.secrets["gcp_service_account"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)client = gspread.authorize(creds)
 client = gspread.authorize(creds)
 # Use the exact name of your sheet here
 sheet = client.open("freezonex_data").sheet1
