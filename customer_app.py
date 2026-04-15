@@ -3,11 +3,16 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import datetime
 
-# --- 1. Connection Logic ---
+# --- 1. Connection Logic (UPDATED FOR CLOUD) ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+# This line pulls the data from your Streamlit Secrets box
 creds_dict = st.secrets["gcp_service_account"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+
+# This line uses the secret data instead of a local file
+creds = ServiceAccountCredentials.from_json_dict(creds_dict, scope)
 client = gspread.authorize(creds)
+
 # Use the exact name of your sheet here
 sheet = client.open("freezonex_data").sheet1
 
@@ -19,13 +24,11 @@ if 'page' not in st.session_state:
 if st.session_state.page == 'input':
     st.title("Customer Billing Portal")
     
-    # We put the form in a variable called 'my_form'
     with st.form("billing_form"):
         name = st.text_input("Customer Name")
         item = st.text_input("Product or Service")
         price = st.number_input("Price (PKR)", min_value=0)
         
-        # This is the button you see in your screenshot
         submit_button = st.form_submit_button("Generate Invoice")
 
     if submit_button:
@@ -34,12 +37,11 @@ if st.session_state.page == 'input':
                 current_date = datetime.date.today().strftime("%d-%m-%Y")
                 sheet.append_row([current_date, name, item, price])
                 
-                # Save data so we can show it on the next page
                 st.session_state.invoice_data = {
                     "date": current_date, "name": name, "item": item, "price": price
                 }
                 st.session_state.page = 'invoice'
-                st.rerun() # This flips the page to the Invoice
+                st.rerun() 
         else:
             st.error("Please fill in the Name and Product fields.")
 
