@@ -60,3 +60,5 @@ elif st.session_state.page == 'invoice':
     if st.button("Add New Entry"):
         st.session_state.page = 'input'
         st.rerun()
+st.divider()
+st.caption(" Created by Hafiz Zuhaib Idrees")
