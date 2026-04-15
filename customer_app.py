@@ -13,7 +13,7 @@ creds_dict = st.secrets["gcp_service_account"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-# Use the exact name of your sheet here
+# Use the exact name of your sheet h    ere
 sheet = client.open("freezonex_data").sheet1
 
 # --- 2. Initialize App Memory ---
