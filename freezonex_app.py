@@ -1,104 +1,139 @@
 import streamlit as st
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import datetime
-import os
+from streamlit_gsheets import GSheetsConnection
+import pandas as pd
+from datetime import datetime
+import requests
 
-# --- 1. Connection Logic ---
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# --- 1. SETTINGS & CONNECTION ---
+st.set_page_config(page_title="FREEZONEX - Industrial Log", layout="centered")
 
-if os.path.exists("frezonex-key.json"):
-    creds = ServiceAccountCredentials.from_json_keyfile_name("frezonex-key.json", scope)
-else:
-    creds_dict = st.secrets["gcp_service_account"]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+# MARK: This name must match the name in your [connections.gsheets] secrets!
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-client = gspread.authorize(creds)
-sheet = client.open("freezonex_app_data").sheet1
+# Function to get real-time ambient temp for Lahore (Automated)
+def get_ambient_temp(city="Lahore"):
+    try:
+        res = requests.get(f"https://wttr.in/{city}?format=%t")
+        return float(res.text.replace('°C', '').replace('+', '').strip())
+    except:
+        return 32.0  # Common Pakistan average as fallback
 
-# --- 2. Initialize App Memory ---
+# Initialize Page State
 if 'page' not in st.session_state:
     st.session_state.page = 'input'
 
-# --- PAGE 1: THE INPUT FORM ---
+# --- PAGE 1: SMART DATA INPUT ---
 if st.session_state.page == 'input':
-    st.title("FREEZONEX")
-    st.caption("The Height of Quality")
+    st.title("❄️ FREEZONEX")
+    st.caption("The Height of Quality | Industrial Repair & Billing Log")
     
-    with st.form("billing_form"):
+    with st.form("repair_billing_form", clear_on_submit=True):
+        st.subheader("👤 Customer Information")
         name = st.text_input("Customer Name")
-        number = st.text_input('Customer Phone Number (e.g 0300 1234567)')
-        item = st.selectbox("Product type", ['Chiller', 'Freezer', 'Water Cooler', 'Boiler', 'Other'])
-        shape = st.selectbox('Select Shape', ['Round', 'Rectangular'])
-        capacity = st.selectbox('Capacity in Liters', [50, 100, 150, 200, 250, 300, 500, 700, 1000, 1200, 1500, 2000])
-        total_price = st.number_input("Price (PKR)", min_value=0)
-        advance_price = st.number_input('Advance price (pkr)', min_value=0)
+        # Validation will occur on submit[cite: 1]
+        number = st.text_input('Customer Phone (e.g., 03001234567)')
         
-        submit_button = st.form_submit_button("Generate Invoice")
+        st.divider()
+        st.subheader("🏗️ Machine Specifications")
+        col1, col2 = st.columns(2)
+        with col1:
+            item = st.selectbox("Product Type", ['Chiller', 'Freezer', 'Water Cooler', 'Boiler', 'Refrigerator'])
+            shape = st.selectbox('Select Shape', ['Round', 'Rectangular', 'Vertical', 'Chest'])
+            capacity = st.selectbox('Capacity (Liters)', [50, 100, 150, 200, 250, 300, 500, 700, 1000, 1200, 1500, 2000])
+        
+        with col2:
+            brand = st.text_input("Brand / Model Number")
+            comp_type = st.selectbox("Compressor Type", ["Reciprocating", "Rotary", "Scroll", "Inverter"])
+            comp_cap = st.selectbox("Compressor HP/Capacity", ["1/8 HP", "1/6 HP", "1/4 HP", "1/3 HP", "1/2 HP", "1 HP", "2 HP+"])
+
+        st.divider()
+        st.subheader("⚡ Technical Readings (For Machine Learning)")
+        c3, c4, c5 = st.columns(3)
+        with c3:
+            s_pressure = st.number_input("Suction PSI", help="Low side pressure")
+        with c4:
+            d_pressure = st.number_input("Discharge PSI", help="High side pressure")
+        with c5:
+            amps = st.number_input("Ampere Load", step=0.1)
+
+        fault = st.selectbox("Initial Fault", ["Not Cooling", "Overheating", "Gas Leak", "Compressor Dead", "Noisy", "Tripping"])
+        diagnosis = st.text_area("Final Fix Applied")
+
+        st.divider()
+        st.subheader("💰 Billing")
+        total_price = st.number_input("Total Price (PKR)", min_value=0)
+        advance_price = st.number_input('Advance Paid (PKR)', min_value=0)
+        
+        submit_button = st.form_submit_button("Save Data & Generate Invoice")
 
     if submit_button:
-        # Check if basic fields are filled
-        if not (name and number):
-            st.error('Please enter the Customer Name and Phone Number.')
-        
-        # Check if phone number is valid (must be digits and length of 11)
-        elif not number.isdigit() or len(number) != 11:
-            st.error('Invalid phone number. It must be exactly 11 digits (e.g., 03001234567).')
-        
+        # Strict Pakistan Phone Validation (11 digits, starts with 03)[cite: 1]
+        if not (number.isdigit() and len(number) == 11 and number.startswith("03")):
+            st.error('Invalid phone number. Must be 11 digits starting with 03 (e.g., 03211234567).')
+        elif not name:
+            st.error('Please enter the Customer Name.')
         else:
-            with st.spinner('Saving to Google Sheets...'):
-                current_date = datetime.date.today().strftime("%d-%m-%Y")
+            with st.spinner('Recording data...'):
+                # AUTOMATED VARIABLES[cite: 1]
+                current_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+                ambient_temp = get_ambient_temp()
                 
-                # 1. Save to Google Sheets
-                sheet.append_row([current_date, name, number, item, shape, capacity, total_price, advance_price])
-                
-                # 2. Store in Session State for the next page
-                st.session_state.invoice_data = {
-                    "date": current_date, 
-                    "name": name, 
-                    "number": number, 
-                    "item": item, 
-                    "shape": shape, 
-                    "capacity": capacity, 
-                    "total_price": total_price, 
-                    "advance_price": advance_price
-                }
-                
-                # 3. Move to Invoice Page
-                st.session_state.page = 'invoice'
-                st.rerun()
+                # --- PREPARE DATA FOR GOOGLE SHEETS ---
+                new_row = pd.DataFrame([{
+                    "Timestamp": current_date,
+                    "Customer_Name": name,
+                    "Phone": number,
+                    "Ambient_Temp": ambient_temp,
+                    "Product": item,
+                    "Shape": shape,
+                    "Capacity_L": capacity,
+                    "Compressor": comp_type,
+                    "HP": comp_cap,
+                    "Suction_PSI": s_pressure,
+                    "Discharge_PSI": d_pressure,
+                    "Amps": amps,
+                    "Fault": fault,
+                    "Diagnosis": diagnosis,
+                    "Total_Price": total_price,
+                    "Advance": advance_price
+                }])
 
-# --- PAGE 2: THE CLEAN INVOICE ---
+                # Append to Sheet (Change 'Sheet1' if your tab name is different)
+                try:
+                    existing_df = conn.read(worksheet="Sheet1")
+                    updated_df = pd.concat([existing_df, new_row], ignore_index=True)
+                    conn.update(worksheet="Sheet1", data=updated_df)
+                    
+                    st.session_state.invoice_data = new_row.iloc[0].to_dict()
+                    st.session_state.page = 'invoice'
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Sheet Error: {e}")
+
+# --- PAGE 2: PROFESSIONAL INVOICE ---
 elif st.session_state.page == 'invoice':
     res = st.session_state.invoice_data
+    remaining = res['Total_Price'] - res['Advance']
     
-    # Calculate the remaining balance
-    remaining_balance = res['total_price'] - res['advance_price']
+    st.title("📄 FREEZONEX Receipt")
+    st.info(f"Entry saved with Ambient Temperature: {res['Ambient_Temp']}°C")
     
-    st.title("FREEZONEX (Official Receipt)")
+    st.write(f"**Date:** {res['Timestamp']}")
+    st.write(f"**Customer:** {res['Customer_Name']} ({res['Phone']})")
     st.markdown("---")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**Customer:** {res['name']}")
-        st.write(f"**Phone #:** {res['number']}")
-    with col2:
-        st.write(f"**Date:** {res['date']}")
+    st.subheader("Job Details")
+    st.write(f"**Machine:** {res['Capacity_L']}L {res['Shape']} {res['Product']}")
+    st.write(f"**Diagnosis:** {res['Diagnosis']}")
     
-    st.markdown("---")
-    st.write(f"**Order Details:** {res['capacity']}L {res['shape']} {res['item']}")
+    st.subheader("Financial Summary")
+    st.write(f"Total Amount: **{res['Total_Price']} PKR**")
+    st.write(f"Advance Paid: **{res['Advance']} PKR**")
+    st.success(f"Remaining Balance: **{remaining} PKR**")
     
-    st.subheader("Payment Summary")
-    st.write(f"Total Amount: **{res['total_price']} PKR**")
-    st.write(f"Advance Paid: **{res['advance_price']} PKR**")
-    st.success(f"Remaining Balance: **{remaining_balance} PKR**")
-    
-    st.markdown("---")
-    
-    if st.button("Add New Entry"):
+    if st.button("Add New Job"):
         st.session_state.page = 'input'
         st.rerun()
 
-# --- THE FOOTER ---
 st.divider()
-st.caption("Created by Hafiz Zuhaib Idrees")
+st.caption("Data Intelligence System by Hafiz Zuhaib Idrees")
