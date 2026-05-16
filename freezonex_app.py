@@ -7,11 +7,12 @@ import requests
 # --- 1. SETTINGS & CONNECTION ---
 st.set_page_config(page_title="FREEZONEX - Industrial Log", layout="centered")
 
-# Native initialization
-conn = st.connection("gsheets", type=GSheetsConnection)
+# Secure layout: Using the clean spreadsheet API link for your service account
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/11zz6RNMhWyP7zM8iaGxu1hVJvA-R0vGxmGpp4aPEL2w"
+WORKSHEET_NAME = "Sheet1"
 
-# Your exact Google Sheet URL from the screenshot
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uGro2ZDbCVz8HG0JQfLJYp9VuRlQKHSZsqczS3r5L_M/edit?usp=sharing"
+# Native initialization (This automatically looks for your service account keys in Streamlit Secrets)
+conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_ambient_temp(city="Lahore"):
     try:
@@ -74,7 +75,7 @@ if st.session_state.page == 'input':
         elif not name:
             st.error('Please enter the Customer Name.')
         else:
-            with st.spinner('Recording data...'):
+            with st.spinner('Recording data to Google Sheets...'):
                 current_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 ambient_temp = get_ambient_temp()
                 
@@ -101,10 +102,17 @@ if st.session_state.page == 'input':
                 }])
 
                 try:
-                    # Explicitly targeting the sheet URL and worksheet name
-                    existing_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Sheet1")
+                    # 1. Read the existing sheet automatically using your service account credential pipeline
+                    existing_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet=WORKSHEET_NAME)
+                    
+                    # 2. Append the newly submitted row immediately
                     updated_df = pd.concat([existing_df, new_row], ignore_index=True)
-                    conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Sheet1", data=updated_df)
+                    
+                    # 3. Push data straight back up to Google Sheets instantly
+                    conn.update(spreadsheet=SPREADSHEET_URL, worksheet=WORKSHEET_NAME, data=updated_df)
+                    
+                    # Clear the cache to make sure the app sees new changes instantly
+                    st.cache_data.clear()
                     
                     st.session_state.invoice_data = new_row.iloc[0].to_dict()
                     st.session_state.page = 'invoice'
