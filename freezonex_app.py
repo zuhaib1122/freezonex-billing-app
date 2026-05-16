@@ -7,6 +7,7 @@ import requests
 # --- 1. SETTINGS & CONNECTION ---
 st.set_page_config(page_title="FREEZONEX - Industrial Log", layout="centered")
 
+# Native initialization
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def get_ambient_temp(city="Lahore"):
@@ -36,21 +37,13 @@ if st.session_state.page == 'input':
             item = st.selectbox("Product Type", ['Refrigerator', 'Freezer', 'Chiller', 'Water Cooler', 'Air Conditioner'])
             size_cft = st.selectbox("Size (Cubic Feet / Ton)", [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, "1.0 Ton", "1.5 Ton", "2.0 Ton", "Custom"])
             brand = st.text_input("Brand / Model Number")
-            
-            # Refrigerant Selection
-            refrigerant = st.selectbox("Refrigerant Type", [
-                "R134a", "R600a", "R22", "R290", "R404a", "R410a", "R32", "R407c", "R507"
-            ])
+            refrigerant = st.selectbox("Refrigerant Type", ["R134a", "R600a", "R22", "R290", "R404a", "R410a", "R32", "R407c", "R507"])
         
         with col2:
             comp_type = st.selectbox("Compressor Type", ["Reciprocating", "Rotary", "Scroll", "Inverter"])
             comp_cap = st.selectbox("Compressor HP", ["1/8 HP", "1/6 HP", "1/4 HP", "1/3 HP", "1/2 HP", "1 HP", "2 HP+"])
             watts = st.number_input("Power Consumption (Watts)", min_value=0, step=1)
-            
-            # Capillary Size Selection
-            capillary = st.selectbox("Capillary Tube Size (Inches)", [
-                "0.031", "0.036", "0.042", "0.049", "0.054", "0.059", "0.064", "0.070", "0.075", "0.080", "N/A (Expansion Valve)"
-            ])
+            capillary = st.selectbox("Capillary Tube Size (Inches)", ["0.031", "0.036", "0.042", "0.049", "0.054", "0.059", "0.064", "0.070", "0.075", "0.080", "N/A (Expansion Valve)"])
 
         st.divider()
         st.subheader("⚡ Technical Readings (For Machine Learning)")
@@ -82,7 +75,6 @@ if st.session_state.page == 'input':
                 current_date = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
                 ambient_temp = get_ambient_temp()
                 
-                # --- PREPARE DATA ---
                 new_row = pd.DataFrame([{
                     "Timestamp": current_date,
                     "Customer_Name": name,
@@ -106,12 +98,10 @@ if st.session_state.page == 'input':
                 }])
 
                 try:
-                    # Explicit Sheet URL Reference to bypass missing secrets configurations
-                    sheet_url = "https://docs.google.com/spreadsheets/d/1uGro2ZDbCVz8HG0JQfLJYp9VuRIQkHSZSqczS3r5L_M/edit?gid=0#gid=0"
-                    
-                    existing_df = conn.read(spreadsheet=sheet_url, worksheet="Sheet1")
+                    # Clean Native Calls targeting the workspace file established in the secrets configuration
+                    existing_df = conn.read(worksheet="Sheet1")
                     updated_df = pd.concat([existing_df, new_row], ignore_index=True)
-                    conn.update(spreadsheet=sheet_url, worksheet="Sheet1", data=updated_df)
+                    conn.update(worksheet="Sheet1", data=updated_df)
                     
                     st.session_state.invoice_data = new_row.iloc[0].to_dict()
                     st.session_state.page = 'invoice'
