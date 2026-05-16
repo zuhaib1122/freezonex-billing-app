@@ -10,6 +10,9 @@ st.set_page_config(page_title="FREEZONEX - Industrial Log", layout="centered")
 # Native initialization
 conn = st.connection("gsheets", type=GSheetsConnection)
 
+# Your exact Google Sheet URL from the screenshot
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1uGro2ZDbCVz8HG0JQfLJYp9VuRlQKHSZsqczS3r5L_M/edit?usp=sharing"
+
 def get_ambient_temp(city="Lahore"):
     try:
         res = requests.get(f"https://wttr.in/{city}?format=%t")
@@ -98,10 +101,10 @@ if st.session_state.page == 'input':
                 }])
 
                 try:
-                    # Clean Native Calls targeting the workspace file established in the secrets configuration
-                    existing_df = conn.read(worksheet="Sheet1")
+                    # Explicitly targeting the sheet URL and worksheet name
+                    existing_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet="Sheet1")
                     updated_df = pd.concat([existing_df, new_row], ignore_index=True)
-                    conn.update(worksheet="Sheet1", data=updated_df)
+                    conn.update(spreadsheet=SPREADSHEET_URL, worksheet="Sheet1", data=updated_df)
                     
                     st.session_state.invoice_data = new_row.iloc[0].to_dict()
                     st.session_state.page = 'invoice'
