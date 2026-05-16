@@ -38,27 +38,28 @@ if st.session_state.page == 'input':
         st.subheader("🏗️ Machine Specifications")
         col1, col2 = st.columns(2)
         with col1:
-            item = st.selectbox("Product Type", ['Refrigerator', 'Freezer', 'Chiller', 'Water Cooler', 'Air Conditioner'])
-            size_cft = st.selectbox("Size (Cubic Feet / Ton)", [4, 6, 8, 10, 12, 14, 16, 18, 20, 22, "1.0 Ton", "1.5 Ton", "2.0 Ton", "Custom"])
-            brand = st.text_input("Brand / Model Number")
+            item = st.selectbox("Product Type", ['Refrigerator', 'Freezer', 'Chiller', 'Water Cooler', 'Air Conditioner','Dispensor'])
+            size_cft = st.selectbox("Size (Cubic Feet)", [4, 6, 8, 10, 12, 15, 18, 20, "Custom"])
+            brand = st.selectbox("Brand Name", ['Freezonex', 'PEL', 'Dawlance', 'Haier', 'Orient', 'Other'])
             refrigerant = st.selectbox("Refrigerant Type", ["R134a", "R600a", "R22", "R290", "R404a", "R410a", "R32", "R407c", "R507"])
         
         with col2:
             comp_type = st.selectbox("Compressor Type", ["Reciprocating", "Rotary", "Scroll", "Inverter"])
-            comp_cap = st.selectbox("Compressor HP", ["1/8 HP", "1/6 HP", "1/4 HP", "1/3 HP", "1/2 HP", "1 HP", "2 HP+"])
+            comp_cap = st.selectbox("Compressor HP", ["1/8 HP", "1/6 HP", "1/4 HP", "1/3 HP", "1/2 HP", "1 HP", "1.5 Hp", "2 HP", "2.5 Hp", "3 Hp", "4 Hp", "5 Hp", "6 Hp"])
             watts = st.number_input("Power Consumption (Watts)", min_value=0, step=1)
             capillary = st.selectbox("Capillary Tube Size (Inches)", ["0.031", "0.036", "0.042", "0.049", "0.054", "0.059", "0.064", "0.070", "0.075", "0.080", "N/A (Expansion Valve)"])
 
         st.divider()
         st.subheader("⚡ Technical Readings (For Machine Learning)")
-        c3, c4, c5 = st.columns(3)
+        c3, c4, c5, c6 = st.columns(4)
         with c3:
             s_pressure = st.number_input("Suction PSI", step=0.1)
         with c4:
             d_pressure = st.number_input("Discharge PSI", step=0.1)
         with c5:
             amps = st.number_input("Ampere Load", step=0.01)
-
+        with c6:
+            machine_temp = st.number_input("Machine Temp (°C)", step=0.1)
         fault = st.selectbox("Initial Fault", ["Not Cooling", "Overheating", "Gas Leak", "Compressor Dead", "Noisy", "Tripping"])
         diagnosis = st.text_area("Final Fix Applied")
 
@@ -95,12 +96,12 @@ if st.session_state.page == 'input':
                     "Suction_PSI": s_pressure,
                     "Discharge_PSI": d_pressure,
                     "Amps": amps,
+                    "Machine_Temp": machine_temp,
                     "Fault": fault,
                     "Diagnosis": diagnosis,
                     "Total_Price": total_price,
                     "Advance": advance_price
                 }])
-
                 try:
                     # 1. Read the existing sheet automatically using your service account credential pipeline
                     existing_df = conn.read(spreadsheet=SPREADSHEET_URL, worksheet=WORKSHEET_NAME)
@@ -133,7 +134,7 @@ elif st.session_state.page == 'invoice':
     st.markdown("---")
     
     st.subheader("Job Details")
-    st.write(f"**Machine:** {res['Size_CFT']} {res['Product']}")
+    st.write(f"**Machine:** {res['Product']} : {res['Size_CFT']} Cubic Feet")
     st.write(f"**Refrigerant:** {res['Refrigerant']} | **Capillary:** {res['Capillary_Size']}")
     st.write(f"**Power Profile:** {res['Watts']} Watts | {res['Amps']} Amps")
     
